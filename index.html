@@ -30,12 +30,12 @@
   .brand { text-align:center; font-size:10px; color:var(--muted); line-height:1.3; }
   .brand svg { display:block; margin:0 auto 2px; }
 
-  /* 許可/拒否の結果画面 */
-  .result { display:none; position:fixed; inset:0; background:var(--bg); padding:24px; overflow:auto;
-            align-items:center; justify-content:center; }
+  /* 結果画面：長くても上から読めるように、全体をスクロール可能にして中央寄せは margin:auto で行う */
+  .result { display:none; position:fixed; inset:0; background:var(--bg); padding:24px 16px;
+            overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .result.show { display:flex; }
-  .panel { max-width:460px; width:100%; background:var(--card); border:1px solid var(--line); border-radius:10px;
-           padding:28px 24px; text-align:center; }
+  .panel { max-width:460px; width:100%; margin:auto; background:var(--card); border:1px solid var(--line);
+           border-radius:10px; padding:28px 24px; text-align:center; }
   .panel .emoji { font-size:56px; line-height:1; }
   .panel h1 { font-size:24px; margin:14px 0 10px; }
   .panel p { font-size:15px; line-height:1.8; margin:10px 0; text-align:left; }
@@ -45,15 +45,27 @@
   .panel button { margin-top:12px; font:inherit; padding:10px 18px; border-radius:6px; border:1px solid var(--line);
                   background:transparent; color:var(--text); cursor:pointer; }
 
-  /* 通知許可に対応していない環境用の、なんちゃってダイアログ */
-  .fake { display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); width:calc(100% - 24px); max-width:360px;
-          background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.3);
-          padding:16px; z-index:5; font-size:14px; }
-  .fake.show { display:block; }
-  .fake .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
-  .fake button { font:inherit; padding:7px 16px; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer; }
-  .fake button.allow { background:var(--blue); border-color:var(--blue); color:#fff; }
-  .hint { position:fixed; top:6px; left:50%; transform:translateX(-50%); font-size:14px; color:var(--text);
+  /* iPhone風の通知許可ダイアログ（通知APIが使えない環境で表示） */
+  .ios-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:10;
+              align-items:center; justify-content:center; padding:16px; }
+  .ios-wrap.show { display:flex; }
+  .ios { width:270px; background:rgba(250,250,250,.97); color:#000; border-radius:14px; text-align:center; overflow:hidden;
+         font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  .ios .body { padding:18px 16px 16px; }
+  .ios h2 { font-size:17px; font-weight:600; line-height:1.35; margin:0 0 4px; }
+  .ios p { font-size:13px; line-height:1.35; margin:0; }
+  .ios .btns { display:flex; border-top:1px solid rgba(60,60,67,.29); }
+  .ios .btns button { flex:1; font:inherit; font-size:17px; color:#007aff; background:transparent; border:0;
+                      padding:12px 4px; cursor:pointer; }
+  .ios .btns button + button { border-left:1px solid rgba(60,60,67,.29); font-weight:600; }
+  .ios .btns button:active { background:rgba(0,0,0,.08); }
+  @media (prefers-color-scheme: dark) {
+    .ios { background:rgba(44,44,46,.97); color:#fff; }
+    .ios .btns, .ios .btns button + button { border-color:rgba(255,255,255,.2); }
+    .ios .btns button { color:#0a84ff; }
+  }
+
+  .hint { position:fixed; top:6px; left:50%; transform:translateX(-50%); font-size:14px;
           background:#ffd54f; color:#222; padding:6px 12px; border-radius:6px; display:none; z-index:4; white-space:nowrap; }
   .hint.show { display:block; }
 </style>
@@ -80,11 +92,16 @@
   </div>
 </main>
 
-<div class="fake" id="fake">
-  <div><b>このサイトが通知の送信を求めています</b></div>
-  <div class="btns">
-    <button id="fakeBlock">ブロック</button>
-    <button id="fakeAllow" class="allow">許可</button>
+<div class="ios-wrap" id="fake">
+  <div class="ios" role="dialog" aria-modal="true">
+    <div class="body">
+      <h2>“認証システム”は通知を送信します。よろしいですか？</h2>
+      <p>通知方法は、テキスト、サウンド、アイコンバッジが利用できる可能性があります。通知方法は“設定”で設定できます。</p>
+    </div>
+    <div class="btns">
+      <button id="fakeBlock">許可しない</button>
+      <button id="fakeAllow">許可</button>
+    </div>
   </div>
 </div>
 
@@ -95,7 +112,10 @@
     <p>やーい ひっかかってやーんの!</p>
     <p><b>どういう仕組み？</b><br>
       本物のウイルス系サイトは「ロボットではないことを確認するため<b>許可</b>を押してください」と偽って、ブラウザの通知許可を押させます。許可すると、あとから広告や詐欺・ウイルス感染を装った通知が勝手に届き続けます。
-というかreCaptchaをする理由を考えたらわかるよね!(reCaptchaはロボットの自動アクセス的なやつを防ぐものなので、ロボットが突破できたら意味ないです)</p>
+というかreCaptchaをする理由を考えたらわかるよね!(reCaptchaはロボットの自動アクセス的なやつを防ぐものなので、ロボットが突破できたら意味ないです)
+
+"スマホだとこの詐欺できないからこれの意味ないけど"
+</p>
     <p><b>対策</b><br>
       ・CAPTCHAで通知の「許可」を求められたら必ず「ブロック」<br>
       ・許可してしまったら、ブラウザの設定 → サイトの設定 → 通知 から取り消せます</p>
@@ -124,7 +144,9 @@
   function show(id) {
     hint.classList.remove('show');
     fake.classList.remove('show');
-    document.getElementById(id).classList.add('show');
+    var el = document.getElementById(id);
+    el.classList.add('show');
+    el.scrollTop = 0; // 必ず一番上から表示する
   }
   function allowed() { show('virus'); }
   function denied()  { show('good'); }
@@ -138,10 +160,10 @@
   }
 
   function askPermission() {
-    hint.classList.add('show');
-    // 通知APIが使えない環境（iPhoneのSafariなど）では、なんちゃってダイアログで代用
+    // 通知APIが使えない環境（iPhoneのSafariなど）では、iPhone風のなんちゃってダイアログで代用
     if (!('Notification' in window)) { fake.classList.add('show'); return; }
 
+    hint.classList.add('show');
     // すでに選択済みの場合は、ブラウザは再度聞いてくれないのでその結果を使う
     if (Notification.permission === 'granted') return allowed();
     if (Notification.permission === 'denied')  return denied();
@@ -153,7 +175,7 @@
     try {
       var r = Notification.requestPermission(done);
       if (r && r.then) r.then(done);
-    } catch (e) { fake.classList.add('show'); }
+    } catch (e) { hint.classList.remove('show'); fake.classList.add('show'); }
   }
 
   check.addEventListener('click', start);
